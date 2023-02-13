@@ -141,7 +141,7 @@ public class BallBehavior : MonoBehaviour
     {
         if (other.gameObject.name is "West Wall" or "East Wall")
         {
-            if (other.gameObject.name is "WestWall")
+            if (other.gameObject.name is "West Wall")
             {
                 rightPaddleScore += 1;
                 Debug.Log("Right Player scored a point!");
