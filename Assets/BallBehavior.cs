@@ -14,11 +14,21 @@ public class BallBehavior : MonoBehaviour
     public TextMeshProUGUI rightPaddleText;
     public GameObject leftWinText;
     public GameObject rightWinText;
+    public AudioSource boingSound;
+    
+    //Paddle objects to change when getting Big PowerUp
+    public GameObject leftPaddle;
+    public GameObject rightPaddle;
+    
+    //Powerup Prefabs
+    public GameObject bigPowerUpPrefab;
+    public GameObject ghostPowerUpPrefab;
     
     private int leftPaddleScore = 0;
     private int rightPaddleScore = 0;
 
     private bool didRightScore;
+    private bool isRightBall;
     
     void BallStart()
     {
@@ -38,6 +48,7 @@ public class BallBehavior : MonoBehaviour
     void ResetBall()
     {
         this.transform.position = new Vector3(0, 0.51f, -0.01f);
+        boingSound.pitch = 1;
         speed = 0;
     }
 
@@ -45,7 +56,7 @@ public class BallBehavior : MonoBehaviour
     {
         ResetBall();
         speed = 0.05f;
-        
+
         if (!didRightScore)
         {
             direction = new Vector3(1, 0, 1).normalized;
@@ -92,7 +103,8 @@ public class BallBehavior : MonoBehaviour
     {
         leftWinText.SetActive(false);
         rightWinText.SetActive(false);
-        
+        InvokeRepeating("spawnPowerup", 20, 20);
+
         SetScoreText();
         BallStart();
     }
@@ -110,30 +122,109 @@ public class BallBehavior : MonoBehaviour
 
         if (collision.gameObject.name is "LeftPaddle" or "RightPaddle")
         {
+            boingSound.Play();
             speed += 0.01f;
+            boingSound.pitch += 0.01f;
+
+            if (collision.gameObject.name is "LeftPaddle")
+            {
+                isRightBall = false;
+            }
+            else
+            {
+                isRightBall = true;
+            }
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.name == "West Wall")
+        if (other.gameObject.name is "West Wall" or "East Wall")
         {
-            rightPaddleScore += 1;
-            Debug.Log("Right Player scored a point!");
-            didRightScore = true;
-        }
-        else
+            if (other.gameObject.name is "WestWall")
+            {
+                rightPaddleScore += 1;
+                Debug.Log("Right Player scored a point!");
+                didRightScore = true;
+            }
+            else
+            {
+                leftPaddleScore += 1;
+                Debug.Log("Left Player scored a point!");
+                didRightScore = false;
+            }
+            
+            Debug.Log($"Left Player Score: {leftPaddleScore} - Right Player Score: {rightPaddleScore}");
+            SetScoreText();
+        
+            if (didRightScore)
+            {
+                rightPaddleText.color = Random.ColorHSV();
+            }
+            else
+            {
+                leftPaddleText.color = Random.ColorHSV();
+            }
+        
+            if (!(leftPaddleScore >= 11 || rightPaddleScore >= 11))
+            {
+                StartNextRound();
+            }
+        } else if (other.gameObject.name is "BigPowerUp(Clone)")
         {
-            leftPaddleScore += 1;
-            Debug.Log("Left Player scored a point!");
-            didRightScore = false;
+            if (isRightBall)
+            {
+                rightPaddle.transform.localScale = new Vector3(1, 6, 1);
+            }
+            else
+            {
+                leftPaddle.transform.localScale = new Vector3(1, 6, 1);
+            }
+            Destroy(other.gameObject);
+            Invoke("resetPaddles", 15);
+        } else if (other.gameObject.name is "TransparentBallPowerUp(Clone)")
+        {
+            Color transparentColor = GetComponent<Renderer>().material.color;
+            transparentColor.a = 0;
+            
+            GetComponent<Renderer>().material.color = transparentColor;
+            
+            Destroy(other.gameObject);
+            Invoke("resetBallTransparency", 15);
         }
-        Debug.Log($"Left Player Score: {leftPaddleScore} - Right Player Score: {rightPaddleScore}");
-        SetScoreText();
+    }
 
-        if (!(leftPaddleScore >= 11 || rightPaddleScore >= 11))
+    private void spawnPowerup()
+    {
+        var randomChance = Random.Range(0,2);
+        float randomZ = Random.Range(-10, 10); 
+        switch (randomChance)
         {
-            StartNextRound();
+            case 0:
+                Debug.Log("Big Paddle PowerUp Activated");
+                Instantiate(bigPowerUpPrefab, new Vector3(0, 0, randomZ), Quaternion.identity);
+                break;
+            case 1:
+                Debug.Log("Transparent Ball Activated");
+                Instantiate(ghostPowerUpPrefab, new Vector3(0, 0, randomZ), Quaternion.identity);
+                break;
+            default:
+                Debug.Log("No PowerUp spawned.");
+                break;
         }
+    }
+
+    private void resetPaddles()
+    {
+        leftPaddle.transform.localScale = new Vector3(1, 3.4951f, 1);
+        rightPaddle.transform.localScale = new Vector3(1, 3.4951f, 1);
+    }
+
+    private void resetBallTransparency()
+    {
+        Color color = GetComponent<Renderer>().material.color;
+        color.a = 1f;
+
+        GetComponent<Renderer>().material.color = color;
     }
 }
